@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <style>
+    * { box-sizing: border-box; }
+    body { font-family: Arial, sans-serif; margin: 0; padding: 16px; color: #111827; }
+    h2 { margin: 0 0 4px; font-size: 18px; }
+    .sub { color: #6b7280; font-size: 12px; margin-bottom: 16px; }
+    label { display: block; font-size: 12px; font-weight: bold; margin: 12px 0 4px; }
+    input, select, textarea {
+      width: 100%; padding: 9px 10px; border: 1px solid #d1d5db; border-radius: 8px;
+      font-size: 14px; font-family: inherit;
+    }
+    input:focus, select:focus, textarea:focus { outline: 2px solid #10b981; border-color: #10b981; }
+    .amount-wrap { position: relative; }
+    .amount-wrap span { position: absolute; left: 10px; top: 9px; color: #6b7280; }
+    .amount-wrap input { padding-left: 24px; }
+    .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+    .chip {
+      border: 1px solid #d1d5db; background: #fff; border-radius: 999px; padding: 4px 10px;
+      font-size: 12px; cursor: pointer;
+    }
+    .chip:hover { border-color: #10b981; }
+    button.save {
+      width: 100%; margin-top: 18px; padding: 11px; border: 0; border-radius: 8px;
+      background: #10b981; color: #fff; font-size: 15px; font-weight: bold; cursor: pointer;
+    }
+    button.save:disabled { background: #9ca3af; cursor: wait; }
+    .msg { margin-top: 12px; font-size: 13px; padding: 8px 10px; border-radius: 8px; display: none; }
+    .ok { background: #ecfdf5; color: #065f46; display: block; }
+    .err { background: #fef2f2; color: #991b1b; display: block; }
+    .footer { margin-top: 20px; color: #9ca3af; font-size: 11px; text-align: center; }
+  </style>
+</head>
+<body>
+  <h2>➕ Add Expense</h2>
+  <div class="sub">Saved straight into your Expenses sheet</div>
+
+  <form id="f" autocomplete="off">
+    <label for="date">Date</label>
+    <input type="date" id="date" required>
+
+    <label for="amount">Amount</label>
+    <div class="amount-wrap">
+      <span>₹</span>
+      <input type="number" id="amount" min="0.01" step="0.01" placeholder="0.00" required>
+    </div>
+    <div class="chips" id="quick"></div>
+
+    <label for="category">Category</label>
+    <select id="category" required></select>
+
+    <label for="mode">Payment mode</label>
+    <select id="mode"></select>
+
+    <label for="note">Note (optional)</label>
+    <textarea id="note" rows="2" placeholder="e.g. Lunch with friends"></textarea>
+
+    <button class="save" id="btn" type="submit">Save expense</button>
+  </form>
+
+  <div class="msg" id="msg"></div>
+  <div class="footer">Smart Expense Tracker · by Pablo Chomcobar</div>
+
+  <script>
+    var $ = function (id) { return document.getElementById(id); };
+
+    function fill(select, values) {
+      select.innerHTML = '';
+      values.forEach(function (v) {
+        var o = document.createElement('option');
+        o.value = v; o.textContent = v;
+        select.appendChild(o);
+      });
+    }
+
+    function show(text, ok) {
+      var m = $('msg');
+      m.textContent = text;
+      m.className = 'msg ' + (ok ? 'ok' : 'err');
+    }
+
+    [50, 100, 200, 500, 1000].forEach(function (n) {
+      var b = document.createElement('button');
+      b.type = 'button'; b.className = 'chip'; b.textContent = '₹' + n;
+      b.onclick = function () { $('amount').value = n; };
+      $('quick').appendChild(b);
+    });
+
+    google.script.run
+      .withSuccessHandler(function (o) {
+        fill($('category'), o.categories);
+        fill($('mode'), o.modes);
+        $('date').value = o.today;
+        $('amount').focus();
+      })
+      .withFailureHandler(function (e) { show(e.message, false); })
+      .getFormOptions();
+
+    $('f').addEventListener('submit', function (ev) {
+      ev.preventDefault();
+      var btn = $('btn');
+      btn.disabled = true; btn.textContent = 'Saving...';
+      google.script.run
+        .withSuccessHandler(function (text) {
+          show('✅ ' + text, true);
+          $('amount').value = ''; $('note').value = '';
+          $('amount').focus();
+          btn.disabled = false; btn.textContent = 'Save expense';
+        })
+        .withFailureHandler(function (e) {
+          show(e.message, false);
+          btn.disabled = false; btn.textContent = 'Save expense';
+        })
+        .addExpense({
+          date: $('date').value,
+          amount: $('amount').value,
+          category: $('category').value,
+          mode: $('mode').value,
+          note: $('note').value
+        });
+    });
+  </script>
+</body>
+</html>
